@@ -1,76 +1,81 @@
-function Get-InfoSystem{
-param (
+﻿$PowerShellVersion=$psversiontable.PSVersion.ToString()
 
-        [parameter(mandatory=$false)]
-        [parameter(ParameterSetName='infoObject')]
-        [ValidateSet('infoObject')]
-        [string]$Get_infoObject,
-        
-        [parameter(mandatory=$false)]
-        [parameter(ParameterSetName='Compilation')]
-        [ValidateSet('Compilation')]
-        [string]$Get_Compilation,
-        
-        [parameter(mandatory=$false)]
-        [parameter(ParameterSetName='HostName')]
-        [ValidateSet('HostName')]
-        [string]$Get_HostName,
+$OS = Get-WmiObject -Class Win32_OperatingSystem
+$OSCaption = $OS.Caption
+$OSVersion = $OS.Version
+$OSSerialNumber = $OS.SerialNumber
+$OSInstallDate = $OS.InstallDate
+$Network = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter IPEnabled=$true
+$DefaultIPGateway = $Network.DefaultIPGateway
+$NetworkAdapter = $Network.Description
+$IPAddress = $Network.IPAddress[0]
+$IPV6Address = $Network.IPAddress[1]
+$IPSubnet = $Network.IPSubnet[0]
+$MACAddress = $Network.MACAddress
+$Computer = Get-WmiObject -Class Win32_ComputerSystem
+$ComputerName = $Computer.Name
+$CPUInfo = Get-WmiObject -Class Win32_Processor
+$LogicalProcessorCount = (Get-WmiObject -class Win32_processor -Property NumberOfLogicalProcessors).NumberOfLogicalProcessors
+$PhysicalProcessorCount = @($CPUInfo).Count
+$PhysicalDiskInfo = Get-WmiObject -Class Win32_DiskDrive
+$LogicalDiskInfo = Get-WmiObject -Class Win32_LogicalDisk -filter "DriveType=3"
+$LogicalDiskCount = $LogicalDiskInfo.Count
+$PhysicalDiskCount = ($PhysicalDiskInfo.Caption).Count
+$MemTotal = "{0:0.0} GB" -f ($OS.TotalVisibleMemorySize / 1MB)
 
-        [parameter(mandatory=$false)]
-        [parameter(ParameterSetName='OS')]
-        [ValidateSet('OS')]
-        [string]$Get_OS,
-
-        [parameter(mandatory=$false)]
-        [parameter(ParameterSetName='HotFix')]
-        [ValidateSet('HotFix')]
-        [string]$Get_HotFix,
-
-        [parameter(mandatory=$false)]
-        [parameter(ParameterSetName='AdminUsers')]
-        [ValidateSet('AdminUsers')]
-        [string]$Get_AdminUsers,
-
-        [parameter(mandatory=$false)]
-        [parameter(ParameterSetName='Process')]
-        [ValidateSet('Process')]
-        [string]$Get_Process
-
-
-)
-  
-    $compilation = Get-WmiObject -Class Win32_OperatingSystem 
-    $hostname = Get-WmiObject -Class Win32_ComputerSystem
-    $os = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
-    $hotfix = Get-WmiObject -Class win32_quickfixengineering
-    $useradmins = Get-LocalGroupMember -Group "Administrators"
-    $process = Get-WmiObject -Class win32_process
-
-
-    $Object = New-Object -TypeName PSObject
-    $Object | Add-Member -MemberType NoteProperty -Name Compilation -Value $compilation.Version
-    $Object | Add-Member -MemberType NoteProperty -Name HostName -Value $hostname.Name
-    $Object | Add-Member -MemberType NoteProperty -Name OS -Value $os.ProductName
-    $Object | Add-Member -MemberType NoteProperty -Name HotFix -Value $hotfix.HotFixID
-    $Object | Add-Member -MemberType NoteProperty -Name AdminUsers -Value $useradmin.Name
-    $Object | Add-Member -MemberType NoteProperty -Name Process -Value $process.Name
-
-#     switch ($psCmdlet.ParameterSetName) {
-    
-    Write-Output $Object
-
-#          "Compilation" {Write-Output $Object | Select Compilation }
-         
-#          "HostName" {Write-Output $Object | Select Hostname}
-
-#          "OS" {Write-Output $Object | Select OS}
-
-#          "HotFix" {Write-Output $Object | Select -ExpandProperty HotFix}
-
-#          "AdminUsers" {Write-Output $Object | Select -ExpandProperty AdminUsers}
-
-#          "Process" {Write-Output $Object | Select -ExpandProperty Process}
-                         
-#         }  
- 
+$RESULT="{""result"":{""powershellVersion"":""$PowerShellVersion"",""startTime"":""$(Get-Date)"",
+    ""os"":{""osCaption"":""$OSCaption"",""osVersion"":""$OSVersion"",""serialNumber"":""$OSSerialNumber"",""osInstallTime"":""$OSInstallDate""},
+    ""ip"":{""defaultIPGateway"":""$DefaultIPGateway"",""networkAdapter"":""$NetworkAdapter"",""ipAddress"":""$IPAddress"",""ipV6Address"":""$IPV6Address"",""subnetMask"":""$IPSubnet"",""macAddress"":""$MACAddress""},
+    ""system"":{""computerName"":""$ComputerName"",""physicalCPUNum"":""$PhysicalProcessorCount"",""logicalCPUNum"":""$LogicalProcessorCount"",""memorySizeTotal"":""$MemTotal""},""cpu"":["
+$count=0
+foreach ($CPU in $CPUInfo)
+{
+    $CPUName = $CPU.Name
+    $DeviceID = $CPU.DeviceID
+    $RESULT=$RESULT+"{""cpuName"":""$CPUName"",""deviceID"":""$DeviceID""}"
+    $count++
+    if($count -lt $PhysicalProcessorCount)
+    {
+        $RESULT=$RESULT+","
+    }
+    elseif($count -eq $PhysicalProcessorCount)
+    {
+        $RESULT=$RESULT+"],""physicalDisk"":["
+    }
 }
+$count=0
+foreach ($Disk in $PhysicalDiskInfo)
+{
+    $SerialNumber = $Disk.SerialNumber
+    $DeviceID = $Disk.DeviceID.Remove(0,4)
+    $DiskSize = "{0:N2}GB" -f ($Disk.Size/1GB)
+    $RESULT=$RESULT+"{""serialNumber"":""$SerialNumber"",""deviceID"":""$DeviceID"",""diskSize"":""$DiskSize""}"
+    $count++
+    if($count -lt $PhysicalDiskCount)
+    {
+        $RESULT=$RESULT+","
+    }
+    elseif($count -eq $PhysicalDiskCount)
+    {
+        $RESULT=$RESULT+"],""logicalDisk"":["
+    }
+}
+$count=0
+foreach ($Disk in $LogicalDiskInfo)
+{
+    $SerialNumber = $Disk.VolumeSerialNumber
+    $DeviceID = $Disk.DeviceID
+    $DiskSize = "{0:N2}GB" -f ($Disk.Size/1GB)
+    $DiskFreeSpace = "{0:N2}GB" -f ($Disk.FreeSpace/1GB)
+    $RESULT=$RESULT+"{""deviceID"":""$DeviceID"",""volumeSerialNumber"":""$SerialNumber"",""diskSize"":""$DiskSize"",""diskFreeSpace"":""$DiskFreeSpace""}"
+    $count++
+    if($count -lt $LogicalDiskCount)
+    {
+        $RESULT=$RESULT+","
+    }
+    elseif($count -eq $LogicalDiskCount)
+    {
+        $RESULT=$RESULT+"]}}"
+    }
+}
+echo $RESULT
