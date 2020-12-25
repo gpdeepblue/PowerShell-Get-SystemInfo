@@ -55,22 +55,22 @@ param (
     $Object | Add-Member -MemberType NoteProperty -Name AdminUsers -Value $useradmin.Name
     $Object | Add-Member -MemberType NoteProperty -Name Process -Value $process.Name
 
-    switch ($psCmdlet.ParameterSetName) {
+#     switch ($psCmdlet.ParameterSetName) {
     
-         "infoObject" {Write-Output $Object}
+    Write-Output $Object
 
-         "Compilation" {Write-Output $Object | Select Compilation }
+#          "Compilation" {Write-Output $Object | Select Compilation }
          
-         "HostName" {Write-Output $Object | Select Hostname}
+#          "HostName" {Write-Output $Object | Select Hostname}
 
-         "OS" {Write-Output $Object | Select OS}
+#          "OS" {Write-Output $Object | Select OS}
 
-         "HotFix" {Write-Output $Object | Select -ExpandProperty HotFix}
+#          "HotFix" {Write-Output $Object | Select -ExpandProperty HotFix}
 
-         "AdminUsers" {Write-Output $Object | Select -ExpandProperty AdminUsers}
+#          "AdminUsers" {Write-Output $Object | Select -ExpandProperty AdminUsers}
 
-         "Process" {Write-Output $Object | Select -ExpandProperty Process}
+#          "Process" {Write-Output $Object | Select -ExpandProperty Process}
                          
-        }  
+#         }  
  
 }
